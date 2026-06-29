@@ -176,6 +176,12 @@
       pointer-events: none; z-index: 10;
     }
 
+    .deadline-line {
+      position: absolute; top: 0; bottom: 0; width: 2px;
+      background: #e24b4a; opacity: 0.75;
+      pointer-events: none; z-index: 10;
+    }
+
     .bar {
       position: absolute; top: 6px; bottom: 6px;
       border-radius: 4px; cursor: grab;
@@ -250,6 +256,8 @@
   <div class="toolbar-group">
     <label class="tb" for="startDate">Start</label>
     <input type="date" id="startDate" />
+    <label class="tb" for="endDate">End</label>
+    <input type="date" id="endDate" />
     <select id="viewRange">
       <option value="14">2 weeks</option>
       <option value="30" selected>1 month</option>
@@ -282,7 +290,8 @@
   <div class="add-row" onclick="addTask()">
     <i class="ti ti-plus" aria-hidden="true"></i> Add task
   </div>
-  <div class="today-line" id="todayLine" style="display:none;"></div>
+  <div class="today-line"    id="todayLine"    style="display:none;"></div>
+  <div class="deadline-line" id="deadlineLine" style="display:none;"></div>
 </div>
 
 <div id="colorPicker" class="color-picker-popup" style="display:none;"></div>
@@ -309,12 +318,18 @@ let nextId   = 6;
 let days     = 30;
 let cellW    = 28;
 let baseDate = new Date(); baseDate.setHours(0,0,0,0);
+let endDate  = null;  // null = no deadline set
 
 // ── Controls ───────────────────────────────────────────────────────────
 const startInput = document.getElementById('startDate');
+const endInput   = document.getElementById('endDate');
 startInput.value = baseDate.toISOString().slice(0,10);
 startInput.addEventListener('change', () => {
   baseDate = new Date(startInput.value+'T00:00:00'); render(); autoSave();
+});
+endInput.addEventListener('change', () => {
+  endDate = endInput.value ? new Date(endInput.value+'T00:00:00') : null;
+  render(); autoSave();
 });
 document.getElementById('viewRange').addEventListener('change', e => {
   days = +e.target.value; render(); autoSave();
@@ -432,6 +447,7 @@ function render() {
   setupBarDrag();
   setupRowDrag();
   renderTodayLine(todayOff);
+  renderDeadlineLine();
 }
 
 // ── Today line ─────────────────────────────────────────────────────────
@@ -445,6 +461,21 @@ function renderTodayLine(todayOff) {
   const cellRect  = cell.getBoundingClientRect();
   const left      = cellRect.left - tableRect.left + cellRect.width/2;
   line.style.cssText = `display:block;position:absolute;top:0;bottom:0;left:${left}px;width:2px;background:var(--accent);opacity:0.6;pointer-events:none;z-index:10;`;
+}
+
+// ── Deadline line ──────────────────────────────────────────────────────
+function renderDeadlineLine() {
+  const line = document.getElementById('deadlineLine');
+  if (!endDate) { line.style.display='none'; return; }
+  const deadlineOff = dayOffset(endDate);
+  if (deadlineOff<0||deadlineOff>=days) { line.style.display='none'; return; }
+  const headerRow = document.getElementById('ganttHead').rows[0];
+  const cell      = headerRow?.cells[deadlineOff+1];
+  if (!cell) { line.style.display='none'; return; }
+  const tableRect = document.getElementById('ganttTable').getBoundingClientRect();
+  const cellRect  = cell.getBoundingClientRect();
+  const left      = cellRect.left - tableRect.left + cellRect.width;
+  line.style.cssText = `display:block;position:absolute;top:0;bottom:0;left:${left}px;width:2px;background:#e24b4a;opacity:0.75;pointer-events:none;z-index:10;`;
 }
 
 // ── Bar drag & resize ──────────────────────────────────────────────────
@@ -481,13 +512,14 @@ document.addEventListener('mousemove', e => {
   if (!dragState) return;
   const delta = Math.round((e.clientX-dragState.startX)/cellW);
   const {task,origStart,origDur,type,action} = dragState;
+  const limit = endDate ? Math.min(days, dayOffset(endDate)+1) : days;
   if (type==='move') {
-    task.start=Math.max(0,Math.min(days-task.dur,origStart+delta));
+    task.start=Math.max(0,Math.min(limit-task.dur,origStart+delta));
   } else if (action==='left') {
     const ns=Math.max(0,Math.min(origStart+origDur-1,origStart+delta));
     task.dur=Math.max(1,origDur-(ns-origStart)); task.start=ns;
   } else {
-    task.dur=Math.max(1,Math.min(days-origStart,origDur+delta));
+    task.dur=Math.max(1,Math.min(limit-origStart,origDur+delta));
   }
   render();
 });
@@ -589,7 +621,7 @@ document.addEventListener('click', e => {
 
 // ── Chart data helpers ─────────────────────────────────────────────────
 function chartData() {
-  return { version:1, baseDate:fmtISO(baseDate), days, cellW, tasks };
+  return { version:1, baseDate:fmtISO(baseDate), endDate: endDate ? fmtISO(endDate) : null, days, cellW, tasks };
 }
 
 function applyChartData(data) {
@@ -597,8 +629,10 @@ function applyChartData(data) {
   days     = data.days  || 30;
   cellW    = data.cellW || 28;
   baseDate = new Date(data.baseDate+'T00:00:00');
+  endDate  = data.endDate ? new Date(data.endDate+'T00:00:00') : null;
   nextId   = Math.max(...tasks.map(t=>t.id))+1;
   startInput.value = data.baseDate;
+  endInput.value   = data.endDate || '';
   document.getElementById('viewRange').value = String(days);
   render();
 }
@@ -732,6 +766,17 @@ function exportPNG() {
     ctx.strokeStyle=C.accent; ctx.lineWidth=2; ctx.globalAlpha=0.7;
     ctx.beginPath(); ctx.moveTo(tx,0); ctx.lineTo(tx,H); ctx.stroke();
     ctx.globalAlpha=1;
+  }
+
+  // Deadline line
+  if (endDate) {
+    const deadlineOff = dayOffset(endDate);
+    if (deadlineOff>=0&&deadlineOff<days) {
+      const dx=LABEL_W+(deadlineOff+1)*cellW;
+      ctx.strokeStyle='#e24b4a'; ctx.lineWidth=2; ctx.globalAlpha=0.75;
+      ctx.beginPath(); ctx.moveTo(dx,0); ctx.lineTo(dx,H); ctx.stroke();
+      ctx.globalAlpha=1;
+    }
   }
 
   // Outer border
