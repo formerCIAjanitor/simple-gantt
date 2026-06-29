@@ -68,7 +68,7 @@
 
     label.tb { font-size: 13px; color: var(--text-secondary); }
 
-    input[type="date"], select {
+    input[type="date"] {
       font-size: 13px; font-family: var(--font);
       padding: 7px 10px;
       border-radius: var(--radius);
@@ -77,7 +77,7 @@
       outline: none; cursor: pointer;
     }
 
-    input[type="date"]:focus, select:focus {
+    input[type="date"]:focus {
       border-color: var(--accent);
       box-shadow: 0 0 0 3px rgba(24,95,165,0.15);
     }
@@ -248,12 +248,6 @@
     <input type="date" id="startDate" />
     <label class="tb" for="endDate">End</label>
     <input type="date" id="endDate" />
-    <select id="viewRange">
-      <option value="14">2 weeks</option>
-      <option value="30" selected>1 month</option>
-      <option value="60">2 months</option>
-      <option value="90">3 months</option>
-    </select>
   </div>
   <div class="toolbar-group">
     <button class="zoom-btn" onclick="zoom(-1)" title="Zoom out"><i class="ti ti-zoom-out" aria-hidden="true"></i></button>
@@ -301,6 +295,7 @@ let tasks = [
 ];
 let nextId   = 6;
 let days     = 30;
+let defaultDays = 30;  // restored when end date is cleared
 let cellW    = 28;
 let baseDate = new Date(); baseDate.setHours(0,0,0,0);
 let endDate  = null;  // null = no deadline set
@@ -308,17 +303,25 @@ let endDate  = null;  // null = no deadline set
 // ── Controls ───────────────────────────────────────────────────────────
 const startInput = document.getElementById('startDate');
 const endInput   = document.getElementById('endDate');
-startInput.value = baseDate.toISOString().slice(0,10);
+startInput.value = fmtDate(baseDate);
 ['change','input'].forEach(evt => startInput.addEventListener(evt, () => {
-  baseDate = new Date(startInput.value+'T00:00:00'); render(); autoSave();
+  baseDate = new Date(startInput.value+'T00:00:00');
+  if (endDate) {
+    const computed = dayOffset(endDate) + 1;
+    if (computed > 0) days = computed;
+  }
+  render(); autoSave();
 }));
 ['change','input'].forEach(evt => endInput.addEventListener(evt, () => {
   endDate = endInput.value ? new Date(endInput.value+'T00:00:00') : null;
+  if (endDate) {
+    const computed = dayOffset(endDate) + 1;
+    if (computed > 0) days = computed;
+  } else {
+    days = defaultDays;
+  }
   render(); autoSave();
 }));
-document.getElementById('viewRange').addEventListener('change', e => {
-  days = +e.target.value; render(); autoSave();
-});
 
 document.getElementById('fileInput').addEventListener('change', e => {
   const file = e.target.files[0]; if (!file) return;
@@ -335,13 +338,15 @@ document.getElementById('fileInput').addEventListener('change', e => {
 
 // ── Helpers ────────────────────────────────────────────────────────────
 function addDays(d,n) { const r=new Date(d); r.setDate(r.getDate()+n); return r; }
-function dayOffset(d) { return Math.round((d-baseDate)/86400000); }
-function fmtDate(d) {
-  const mm = String(d.getMonth()+1).padStart(2,'0');
-  const dd = String(d.getDate()).padStart(2,'0');
-  return `${d.getFullYear()}-${mm}-${dd}`;
+function dayOffset(d) {
+  // Use UTC midnight arithmetic to avoid DST shifts
+  const a = Date.UTC(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate());
+  const b = Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
+  return Math.round((b - a) / 86400000);
 }
-function fmtISO(d)    { return d.toISOString().slice(0,10); }
+function fmtDate(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
 
 function zoom(dir) { cellW=Math.min(60,Math.max(16,cellW+dir*6)); render(); autoSave(); }
 
@@ -378,11 +383,27 @@ function render() {
 
     const labelTd = document.createElement('td');
     labelTd.className = 'task-label';
-    labelTd.innerHTML = `
-      <span class="drag-handle" data-id="${task.id}" aria-label="Drag to reorder"><i class="ti ti-grip-vertical"></i></span>
-      <div class="color-dot" style="background:${task.color}" data-id="${task.id}" title="Change color"></div>
-      <input value="${task.name}" data-id="${task.id}" title="Click to rename" />
-    `;
+
+    const handle = document.createElement('span');
+    handle.className = 'drag-handle';
+    handle.dataset.id = task.id;
+    handle.setAttribute('aria-label', 'Drag to reorder');
+    handle.innerHTML = '<i class="ti ti-grip-vertical"></i>';
+
+    const dot = document.createElement('div');
+    dot.className = 'color-dot';
+    dot.style.background = task.color;
+    dot.dataset.id = task.id;
+    dot.title = 'Change color';
+
+    const nameInput = document.createElement('input');
+    nameInput.value = task.name;
+    nameInput.dataset.id = task.id;
+    nameInput.title = 'Click to rename';
+
+    labelTd.appendChild(handle);
+    labelTd.appendChild(dot);
+    labelTd.appendChild(nameInput);
     tr.appendChild(labelTd);
 
     for (let i=0; i<days; i++) {
@@ -415,23 +436,35 @@ function render() {
         bar.className  = 'bar';
         bar.dataset.id = task.id;
         bar.style.cssText = `background:${task.color};left:0;width:calc(${span*100}% + ${span-1}px);`;
-        bar.innerHTML = `
-          <div class="resize-handle left"  data-id="${task.id}" data-action="left"></div>
-          <span class="bar-label">${task.name}</span>
-          <div class="resize-handle right" data-id="${task.id}" data-action="right"></div>
-        `;
+        const leftHandle = document.createElement('div');
+        leftHandle.className = 'resize-handle left';
+        leftHandle.dataset.id = task.id;
+        leftHandle.dataset.action = 'left';
+
+        const barLabel = document.createElement('span');
+        barLabel.className = 'bar-label';
+        barLabel.textContent = task.name;
+
+        const rightHandle = document.createElement('div');
+        rightHandle.className = 'resize-handle right';
+        rightHandle.dataset.id = task.id;
+        rightHandle.dataset.action = 'right';
+
+        bar.appendChild(leftHandle);
+        bar.appendChild(barLabel);
+        bar.appendChild(rightHandle);
         startCell.appendChild(bar);
       }
     }
 
     // Rename
-    labelTd.querySelector('input').addEventListener('change', e => {
+    nameInput.addEventListener('change', e => {
       const t=tasks.find(x=>x.id===+e.target.dataset.id);
       if (t) { t.name=e.target.value; render(); autoSave(); }
     });
 
     // Color
-    labelTd.querySelector('.color-dot').addEventListener('click', e => {
+    dot.addEventListener('click', e => {
       e.stopPropagation(); showColorPicker(task.id, e.currentTarget);
     });
 
@@ -444,21 +477,27 @@ function render() {
     });
   });
 
-  setupBarDrag();
-  setupRowDrag();
+  // (drag listeners are delegated — no per-render setup needed)
 }
 
-// ── Bar drag & resize ──────────────────────────────────────────────────
+// ── Bar drag & resize (delegated) ─────────────────────────────────────────
 let dragState = null;
 
-function setupBarDrag() {
-  document.querySelectorAll('.bar').forEach(b  => b.addEventListener('mousedown', onBarMousedown));
-  document.querySelectorAll('.cell').forEach(c => c.addEventListener('mousedown', onCellMousedown));
-}
+// One-time delegated mousedown on the table covers both bars and cells
+document.getElementById('ganttTable').addEventListener('mousedown', e => {
+  if (e.button !== 0) return;
+  const bar  = e.target.closest('.bar');
+  const cell = e.target.closest('.cell');
+  if (bar) {
+    onBarMousedown(e, bar);
+  } else if (cell) {
+    onCellMousedown(e, cell);
+  }
+});
 
-function onBarMousedown(e) {
+function onBarMousedown(e, bar) {
   const action = e.target.dataset.action;
-  const id     = +(e.currentTarget.dataset.id||e.target.dataset.id);
+  const id     = +(bar.dataset.id);
   const task   = tasks.find(t=>t.id===id);
   if (!task) return;
   dragState = action
@@ -467,9 +506,8 @@ function onBarMousedown(e) {
   e.preventDefault(); e.stopPropagation();
 }
 
-function onCellMousedown(e) {
-  if (e.button!==0) return;
-  const day=+e.currentTarget.dataset.day, taskId=+e.currentTarget.dataset.taskId;
+function onCellMousedown(e, cell) {
+  const day=+cell.dataset.day, taskId=+cell.dataset.taskId;
   const task=tasks.find(t=>t.id===taskId);
   if (!task) return;
   if (day<task.start||day>=task.start+task.dur) {
@@ -482,7 +520,7 @@ document.addEventListener('mousemove', e => {
   if (!dragState) return;
   const delta = Math.round((e.clientX-dragState.startX)/cellW);
   const {task,origStart,origDur,type,action} = dragState;
-  const limit = endDate ? Math.min(days, dayOffset(endDate)+1) : days;
+  const limit = days;
   if (type==='move') {
     task.start=Math.max(0,Math.min(limit-task.dur,origStart+delta));
   } else if (action==='left') {
@@ -496,20 +534,17 @@ document.addEventListener('mousemove', e => {
 
 document.addEventListener('mouseup', () => { if (dragState) { dragState=null; autoSave(); } });
 
-// ── Vertical row reorder ───────────────────────────────────────────────
+// ── Vertical row reorder (delegated) ──────────────────────────────────────
 let rowDrag = null;
 
-function setupRowDrag() {
-  document.querySelectorAll('.drag-handle').forEach(h => h.addEventListener('mousedown', onHandleMousedown));
-}
-
-function onHandleMousedown(e) {
-  if (e.button!==0) return;
-  const id = +e.currentTarget.dataset.id;
-  const tr = e.currentTarget.closest('tr');
+document.getElementById('ganttBody').addEventListener('mousedown', e => {
+  const handle = e.target.closest('.drag-handle');
+  if (!handle || e.button !== 0) return;
+  const id = +handle.dataset.id;
+  const tr = handle.closest('tr');
   rowDrag  = {id, tr, startY:e.clientY, dragging:false, overIndex:null, dropBefore:true};
   e.preventDefault(); e.stopPropagation();
-}
+});
 
 document.addEventListener('mousemove', e => {
   if (!rowDrag) return;
@@ -557,9 +592,11 @@ document.addEventListener('mouseup', () => {
 
 // ── Add task ───────────────────────────────────────────────────────────
 function addTask() {
-  const last  = tasks.slice(-1)[0];
-  const start = last ? Math.min(last.start+last.dur, days-3) : 0;
-  tasks.push({id:nextId++, name:'New task', start, dur:5, color:COLORS[tasks.length%COLORS.length]});
+  const last   = tasks.slice(-1)[0];
+  const limit  = days - 3;
+  const start  = last ? Math.min(last.start+last.dur, limit) : 0;
+  const dur    = endDate ? Math.min(5, days - start) : 5;
+  tasks.push({id:nextId++, name:'New task', start: Math.max(0, start), dur: Math.max(1, dur), color:COLORS[tasks.length%COLORS.length]});
   render(); autoSave();
 }
 
@@ -591,25 +628,32 @@ document.addEventListener('click', e => {
 
 // ── Chart data helpers ─────────────────────────────────────────────────
 function chartData() {
-  return { version:1, baseDate:fmtISO(baseDate), endDate: endDate ? fmtISO(endDate) : null, days, cellW, tasks };
+  return { version:1, baseDate:fmtDate(baseDate), endDate: endDate ? fmtDate(endDate) : null, days: defaultDays, cellW, tasks };
 }
 
 function applyChartData(data) {
   tasks    = data.tasks;
-  days     = data.days  || 30;
   cellW    = data.cellW || 28;
   baseDate = new Date(data.baseDate+'T00:00:00');
   endDate  = data.endDate ? new Date(data.endDate+'T00:00:00') : null;
-  nextId   = Math.max(...tasks.map(t=>t.id))+1;
+  if (endDate) {
+    const computed = dayOffset(endDate) + 1;
+    days = computed > 0 ? computed : (data.days || 30);
+    defaultDays = data.days || 30;
+  } else {
+    days = data.days || 30;
+    defaultDays = days;
+  }
+  nextId   = tasks.length ? Math.max(...tasks.map(t=>t.id))+1 : 1;
   startInput.value = data.baseDate;
   endInput.value   = data.endDate || '';
-  document.getElementById('viewRange').value = String(days);
   render();
 }
 
 // ── Auto-save (localStorage) ───────────────────────────────────────────
 function autoSave() {
-  try { localStorage.setItem('gantt_chart', JSON.stringify(chartData())); } catch {}
+  try { localStorage.setItem('gantt_chart', JSON.stringify(chartData())); }
+  catch { showToast('⚠️ Could not auto-save — storage full'); }
 }
 
 // ── Download JSON ──────────────────────────────────────────────────────
