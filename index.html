@@ -321,13 +321,13 @@ let endDate  = null;  // null = no deadline set
 const startInput = document.getElementById('startDate');
 const endInput   = document.getElementById('endDate');
 startInput.value = baseDate.toISOString().slice(0,10);
-startInput.addEventListener('change', () => {
+['change','input'].forEach(evt => startInput.addEventListener(evt, () => {
   baseDate = new Date(startInput.value+'T00:00:00'); render(); autoSave();
-});
-endInput.addEventListener('change', () => {
+}));
+['change','input'].forEach(evt => endInput.addEventListener(evt, () => {
   endDate = endInput.value ? new Date(endInput.value+'T00:00:00') : null;
   render(); autoSave();
-});
+}));
 document.getElementById('viewRange').addEventListener('change', e => {
   days = +e.target.value; render(); autoSave();
 });
@@ -466,9 +466,9 @@ function renderDeadlineLine() {
   const line = document.getElementById('deadlineLine');
   if (!endDate) { line.style.display='none'; return; }
   const deadlineOff = dayOffset(endDate);
-  if (deadlineOff<0||deadlineOff>days) { line.style.display='none'; return; }
-  // Position at the right edge of the deadline column
-  const left = 160 + deadlineOff*cellW + cellW;
+  // Clamp: if deadline is before the view, hide; if beyond, pin to right edge
+  if (deadlineOff < 0) { line.style.display='none'; return; }
+  const left = 160 + Math.min(deadlineOff, days) * cellW;
   line.style.cssText = `display:block;position:absolute;top:0;bottom:0;left:${left}px;width:2px;background:#e24b4a;opacity:0.75;pointer-events:none;z-index:10;`;
 }
 
