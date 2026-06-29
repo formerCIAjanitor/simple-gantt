@@ -120,6 +120,8 @@
 
     .date-header.weekend  { background: var(--surface-alt); }
     .date-header.today-col { background: var(--accent-bg); color: var(--accent); font-weight: 500; }
+    .date-header.deadline-col { border-left: 2px solid #e24b4a !important; }
+    .cell.deadline-col { border-left: 2px solid #e24b4a !important; }
 
     .task-label {
       padding: 6px 10px;
@@ -169,18 +171,6 @@
 
     .cell.weekend   { background: var(--surface-alt); }
     .cell.today-col { background: var(--accent-bg); }
-
-    .today-line {
-      position: absolute; top: 0; bottom: 0; width: 2px;
-      background: var(--accent); opacity: 0.6;
-      pointer-events: none; z-index: 10;
-    }
-
-    .deadline-line {
-      position: absolute; top: 0; bottom: 0; width: 2px;
-      background: #e24b4a; opacity: 0.75;
-      pointer-events: none; z-index: 10;
-    }
 
     .bar {
       position: absolute; top: 6px; bottom: 6px;
@@ -287,8 +277,6 @@
   <div class="add-row" onclick="addTask()">
     <i class="ti ti-plus" aria-hidden="true"></i> Add task
   </div>
-  <div class="today-line"    id="todayLine"    style="display:none;"></div>
-  <div class="deadline-line" id="deadlineLine" style="display:none;"></div>
 </div>
 
 <div id="colorPicker" class="color-picker-popup" style="display:none;"></div>
@@ -359,18 +347,24 @@ function zoom(dir) { cellW=Math.min(60,Math.max(16,cellW+dir*6)); render(); auto
 
 // ── Render ─────────────────────────────────────────────────────────────
 function render() {
-  const today    = new Date(); today.setHours(0,0,0,0);
-  const todayOff = dayOffset(today);
+  const today       = new Date(); today.setHours(0,0,0,0);
+  const todayOff    = dayOffset(today);
+  const deadlineOff = endDate ? dayOffset(endDate) : -1;
 
   // Header
   const head = document.getElementById('ganttHead');
   let hHTML = `<tr><th class="task-col date-header" style="text-align:left;padding:6px 10px;color:var(--text-secondary);font-size:12px;font-weight:500;">Task</th>`;
   for (let i=0; i<days; i++) {
-    const d    = addDays(baseDate,i);
-    const isWE = d.getDay()===0||d.getDay()===6;
-    const isTd = i===todayOff;
-    const show = cellW>=22 ? i%7===0 : i%14===0;
-    hHTML += `<th class="date-header${isWE?' weekend':''}${isTd?' today-col':''}" style="width:${cellW}px;min-width:${cellW}px;">${show?fmtDate(d):''}</th>`;
+    const d      = addDays(baseDate,i);
+    const isWE   = d.getDay()===0||d.getDay()===6;
+    const isTd   = i===todayOff;
+    const isDead = i===deadlineOff;
+    const show   = cellW>=22 ? i%7===0 : i%14===0;
+    let cls = 'date-header';
+    if (isWE)   cls += ' weekend';
+    if (isTd)   cls += ' today-col';
+    if (isDead) cls += ' deadline-col';
+    hHTML += `<th class="${cls}" style="width:${cellW}px;min-width:${cellW}px;">${show?fmtDate(d):''}</th>`;
   }
   head.innerHTML = hHTML+'</tr>';
 
@@ -392,11 +386,16 @@ function render() {
     tr.appendChild(labelTd);
 
     for (let i=0; i<days; i++) {
-      const d    = addDays(baseDate,i);
-      const isWE = d.getDay()===0||d.getDay()===6;
-      const isTd = i===todayOff;
-      const td   = document.createElement('td');
-      td.className = 'cell'+(isWE?' weekend':'')+(isTd?' today-col':'');
+      const d      = addDays(baseDate,i);
+      const isWE   = d.getDay()===0||d.getDay()===6;
+      const isTd   = i===todayOff;
+      const isDead = i===deadlineOff;
+      const td     = document.createElement('td');
+      let cls = 'cell';
+      if (isWE)   cls += ' weekend';
+      if (isTd)   cls += ' today-col';
+      if (isDead) cls += ' deadline-col';
+      td.className = cls;
       td.style.cssText = `width:${cellW}px;min-width:${cellW}px;`;
       td.dataset.day    = i;
       td.dataset.taskId = task.id;
@@ -447,29 +446,6 @@ function render() {
 
   setupBarDrag();
   setupRowDrag();
-  renderTodayLine(todayOff);
-  renderDeadlineLine();
-}
-
-// ── Today line ─────────────────────────────────────────────────────────
-function renderTodayLine(todayOff) {
-  const line = document.getElementById('todayLine');
-  if (todayOff<0||todayOff>=days) { line.style.display='none'; return; }
-  // Position at the centre of the today column
-  // 160px label col + todayOff full columns + half a column
-  const left = 160 + todayOff*cellW + cellW/2;
-  line.style.cssText = `display:block;position:absolute;top:0;bottom:0;left:${left}px;width:2px;background:var(--accent);opacity:0.6;pointer-events:none;z-index:10;`;
-}
-
-// ── Deadline line ──────────────────────────────────────────────────────
-function renderDeadlineLine() {
-  const line = document.getElementById('deadlineLine');
-  if (!endDate) { line.style.display='none'; return; }
-  const deadlineOff = dayOffset(endDate);
-  // Clamp: if deadline is before the view, hide; if beyond, pin to right edge
-  if (deadlineOff < 0) { line.style.display='none'; return; }
-  const left = 160 + Math.min(deadlineOff, days) * cellW;
-  line.style.cssText = `display:block;position:absolute;top:0;bottom:0;left:${left}px;width:2px;background:#e24b4a;opacity:0.75;pointer-events:none;z-index:10;`;
 }
 
 // ── Bar drag & resize ──────────────────────────────────────────────────
@@ -765,8 +741,8 @@ function exportPNG() {
   // Deadline line
   if (endDate) {
     const deadlineOff = dayOffset(endDate);
-    if (deadlineOff>=0&&deadlineOff<days) {
-      const dx=LABEL_W+(deadlineOff+1)*cellW;
+    if (deadlineOff>=0 && deadlineOff<days) {
+      const dx = LABEL_W + deadlineOff*cellW;
       ctx.strokeStyle='#e24b4a'; ctx.lineWidth=2; ctx.globalAlpha=0.75;
       ctx.beginPath(); ctx.moveTo(dx,0); ctx.lineTo(dx,H); ctx.stroke();
       ctx.globalAlpha=1;
