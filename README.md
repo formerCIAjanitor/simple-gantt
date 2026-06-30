@@ -1,4 +1,9 @@
-# SEGSY
+<p align="center" style="margin-bottom: 0;">
+  <img src="./logo.png" width="256" alt="SEGSY logo">
+</p>
+<h1 align="center" style="margin-top: 0;">SEGSY</h1>
+
+## Overview
 
 A lightweight, interactive Gantt chart editor that runs entirely in the browser.
 No installation, build tools or server are required.
