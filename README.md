@@ -4,8 +4,8 @@ A lightweight, interactive Gantt chart editor that runs entirely in the browser.
 No installation, build tools or server are required.
 
 Many Gantt chart applications are overly complex and impractical for quickly creating simple project plans.
-I built this because I wanted a simple way to create clean, readable Gantt charts.
-It consists of a single HTML file, works offline after the first load, and stores data locally unless you explicitly export it.
+This is why I built _Simple Elegant Gantt Solution for You 9000 Ultra Professional Platinum Edition Deluxe Community Edition Long-Term Support (*SEGSY 9000 UPPED CE LTS* or simply *SEGSY*)_, to have a simple way to create clean, readable Gantt charts.
+It is a single HTML file, works offline after the first load and stores data locally unless you explicitly export it.
 
 ![Gantt chart screenshot](./screenshot.png)
 
@@ -20,6 +20,7 @@ It consists of a single HTML file, works offline after the first load, and store
 - **Zoom** — use the `+` / `−` buttons to widen or narrow the day columns
 - **Today marker** — a vertical line marks today's date across the full chart
 - **Dark mode** — automatically follows your system preference
+- **Certified Y2K compliant**
 
 ### Saving & sharing
 
@@ -62,6 +63,24 @@ Saved charts are plain JSON and easy to read or edit by hand:
 - Data is stored in the browser's `localStorage` (browser-local, not synced across devices)
 - PNG export uses the browser's native Canvas API — no server-side rendering
 - Dark mode via `prefers-color-scheme` media query
+
+## Already adopted by (or likely soon-to-be adopted by)
+
+- Microsoft
+- SpaceX (Planning Division)
+- Procter & Gamble
+- The Government of Paraguay
+- CERN
+- Tesla
+- A Google user in Trinidad and Tobago who searched "free Microsoft Project alternative" 
+- The Czech Institute of Paleontology and Botany
+- Michel from Bordeaux
+- OPEC member countries
+- An unnamed foreign intelligence service we are not at liberty to identify
+- That guy from the old GIF who punches his CRT monitor after Excel crashes
+- ...and more
+
+Please open a PR if you would like your company to be included in this list.
 
 ## License
 
