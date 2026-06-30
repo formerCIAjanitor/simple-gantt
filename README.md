@@ -1,7 +1,7 @@
 <p align="center" style="margin-bottom: 0;">
   <img src="./logo.png" width="256" alt="SEGSY logo">
 </p>
-<h1 align="center" style="margin-top: 0;">SEGSY</h1>
+<h1 align="center" style="margin-top: 0;">SEGSY - A simple Gantt chart editor</h1>
 
 ## Overview
 
