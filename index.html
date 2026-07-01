@@ -723,7 +723,7 @@ function updateEndLine() {
         // Use daysInMonth (the full calendar span of this column) as the
         // denominator so the fraction reflects true position within the column.
         const daysUsed   = days - c.startDay;
-        const colSpan    = monthMode ? c.daysInMonth : 7; // full column span in days
+        const colSpan    = monthMode ? c.daysInMonth : c.count; // actual days in this column
         px += (daysUsed / colSpan) * cellW;
         break;
       }
@@ -883,7 +883,7 @@ function onBarMousedown(e, bar) {
   if (!task) return;
   dragState = action
     ? {type:'resize',action,task,startX:e.clientX,origStart:task.start,origDur:task.dur}
-    : {type:'move',  task,   startX:e.clientX,origStart:task.start};
+    : {type:'move',  task,   startX:e.clientX,origStart:task.start,origDur:task.dur};
   e.preventDefault(); e.stopPropagation();
 }
 
@@ -905,7 +905,7 @@ function onCellMousedown(e, cell) {
   }
 
   if (day<task.start||day>=task.start+task.dur) {
-    dragState={type:'move',task,startX:e.clientX,origStart:task.start};
+    dragState={type:'move',task,startX:e.clientX,origStart:task.start,origDur:task.dur};
     e.preventDefault();
   }
 }
@@ -926,14 +926,16 @@ document.addEventListener('mousemove', e => {
   }
   const delta = Math.round((e.clientX-dragState.startX)/dayPx);
   const {task,origStart,origDur,type,action} = dragState;
-  const limit = days;
+  // `days` equals dayOffset(endDate)+1 when an end date is set, so clamping
+  // start+dur to <= days enforces the red-line boundary in all three modes.
   if (type==='move') {
-    task.start=Math.max(0,Math.min(limit-task.dur,origStart+delta));
+    task.start = Math.max(0, Math.min(origStart + delta, days - origDur));
   } else if (action==='left') {
-    const ns=Math.max(0,Math.min(origStart+origDur-1,origStart+delta));
-    task.dur=Math.max(1,origDur-(ns-origStart)); task.start=ns;
+    const ns = Math.max(0, Math.min(origStart + origDur - 1, origStart + delta));
+    task.start = ns;
+    task.dur   = Math.max(1, origDur - (ns - origStart));
   } else {
-    task.dur=Math.max(1,Math.min(limit-origStart,origDur+delta));
+    task.dur = Math.max(1, Math.min(origDur + delta, days - origStart));
   }
   updateBarInPlace(task);
 });

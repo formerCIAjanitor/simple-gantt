@@ -1,11 +1,10 @@
 <p align="center" style="margin-bottom: 0;">
   <img src="./logo.png" width="128" alt="SEGSY logo">
 </p>
-<h1 align="center" style="margin-top: 0;">SEGSY</h1>
 
 ## Overview
 
-A lightweight, interactive Gantt chart editor that runs entirely in the browser.
+Segsy is a lightweight, interactive Gantt chart editor that runs entirely in the browser.
 
 Many Gantt chart applications are overly complex and impractical for quickly creating simple project plans.
 Rejoice! Now there is _Simple Elegant Gantt Solution for You 9000 Ultra Professional Platinum Edition Deluxe (SEGSY 9000 UPPED),_ or simply _SEGSY_.
