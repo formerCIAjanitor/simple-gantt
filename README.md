@@ -1,16 +1,16 @@
 <p align="center" style="margin-bottom: 0;">
-  <img src="./logo.png" width="256" alt="SEGSY logo">
+  <img src="./logo.png" width="128" alt="SEGSY logo">
 </p>
-<h1 align="center" style="margin-top: 0;">SEGSY - A simple Gantt chart editor</h1>
+<h1 align="center" style="margin-top: 0;">SEGSY</h1>
 
 ## Overview
 
 A lightweight, interactive Gantt chart editor that runs entirely in the browser.
-No installation, build tools or server are required.
 
 Many Gantt chart applications are overly complex and impractical for quickly creating simple project plans.
-This is why I built _Simple Elegant Gantt Solution for You 9000 Ultra Professional Platinum Edition Deluxe Community Edition Long-Term Support (SEGSY 9000 UPPED CE LTS, or simply SEGSY)_, to have a simple way to create clean, readable Gantt charts.
-It is a single HTML file, works offline after the first load and stores data locally unless you explicitly export it.
+Rejoice! Now there is _Simple Elegant Gantt Solution for You 9000 Ultra Professional Platinum Edition Deluxe (SEGSY 9000 UPPED),_ or simply _SEGSY_.
+
+Create clean, readable Gantt charts with minimal effort.
 
 ![Gantt chart screenshot](./screenshot.png)
 
@@ -22,8 +22,9 @@ It is a single HTML file, works offline after the first load and stores data loc
 - **Rename tasks** — click any task name to edit it inline
 - **Delete tasks** — right-click a task label and confirm
 - **Color picker** — click the color dot next to a task name to change its color
-- **Zoom** — use the `+` / `−` buttons to widen or narrow the day columns
-- **Today marker** — a vertical line marks today's date across the full chart
+- **Zoom** — select either the day, week or month view
+- **Export as a PNG** — save your Gantt charts as PNG
+- **Save/Load** — save and share chart as JSON
 - **Dark mode** — automatically follows your system preference
 - **Certified Y2K compliant**
 
@@ -36,7 +37,7 @@ It is a single HTML file, works offline after the first load and stores data loc
 | **Load JSON** | Loads a previously saved `gantt.json` file, restoring the chart exactly. |
 | **Export PNG** | Downloads a high-resolution PNG. |
 
-Saved charts are plain JSON and easy to read or edit by hand:
+Saved charts are plain JSON, making them easy to read, edit by hand, or track in Git. I assume at least one person, possibly three, will appreciate this.
 
 ```json
 {
@@ -52,37 +53,23 @@ Saved charts are plain JSON and easy to read or edit by hand:
 }
 ```
 
-`start` and `dur` are in days relative to `baseDate`. You can edit this file in any text editor and reload it in the chart.
+`start` and `dur` are in days relative to `baseDate`.
 
 ## Limitations
 
 - No milestones
 - No collaborative editing
-- Data is stored locally unless exported
 - No task dependencies (yet)
-
-## Technical notes
-
-- Single file: everything is contained in a single `index.html` file
-- The Tabler icon font is loaded from jsDelivr CDN — an internet connection is required on first load. After that, the page works offline thanks to browser caching.
-- Data is stored in the browser's `localStorage` (browser-local, not synced across devices)
-- PNG export uses the browser's native Canvas API — no server-side rendering
-- Dark mode via `prefers-color-scheme` media query
 
 ## Already adopted by (or likely soon-to-be adopted by)
 
-- Microsoft
 - SpaceX (Planning Division)
 - Procter & Gamble
 - The Government of Paraguay
-- CERN
-- Tesla
-- A Google user in Trinidad and Tobago who searched "free Microsoft Project alternative" 
 - The Czech Institute of Paleontology and Botany
 - Michel from Bordeaux
-- OPEC member countries
+- Some Microsoft employees (as an alternative to _Microsoft Project_)
 - An unnamed foreign intelligence service we are not at liberty to identify
-- That guy from the old GIF who punches his CRT monitor after Excel crashes
 - ...and more
 
 Please open a PR if you would like your company to be included in this list.

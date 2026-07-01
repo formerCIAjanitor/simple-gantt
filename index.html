@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SEGSY</title>
+  <title>Segsy Gantt</title>
+  <link rel="icon" type="image/png" href="./logo.png">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -46,7 +47,25 @@
       padding: 2rem 1.5rem;
     }
 
-    h1 { font-size: 22px; font-weight: 500; margin-bottom: 1.5rem; }
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 1.5rem;
+}
+
+.brand-logo {
+  width: 40px;
+  height: auto;
+  display: block;
+}
+
+.brand-name {
+  font-size: 2rem;
+  font-weight: 600;
+  font-family: system-ui, sans-serif;
+  letter-spacing: 0.02em;
+}
 
     .toolbar {
       display: flex;
@@ -98,6 +117,12 @@
     button:active { transform: scale(0.98); }
     .zoom-btn { padding: 7px 10px; }
 
+    .view-btn { padding: 7px 14px; border-radius: 0; border-right-width: 0; }
+    #viewToggleGroup .view-btn:first-child { border-radius: var(--radius) 0 0 var(--radius); }
+    #viewToggleGroup .view-btn:last-child  { border-radius: 0 var(--radius) var(--radius) 0; border-right-width: 0.5px; }
+    .view-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .view-btn.active:hover { background: var(--accent); opacity: 0.9; }
+
     .chart-container {
       overflow-x: auto;
       border: 0.5px solid var(--border);
@@ -107,6 +132,7 @@
     }
 
     table { border-collapse: collapse; width: auto; min-width: 580px; }
+    .table-wrap { position: relative; display: inline-block; min-width: 100%; }
     .task-col { width: 160px; min-width: 160px; }
 
     .date-header {
@@ -248,22 +274,59 @@
     }
 
     footer { margin-top: 1.5rem; font-size: 12px; color: var(--text-muted); }
+
+    .date-field {
+      display: inline-flex; align-items: center;
+      border: 0.5px solid var(--border-strong);
+      border-radius: var(--radius);
+      background: var(--surface); color: var(--text);
+      font-size: 13px; font-family: var(--font);
+      padding: 7px 10px; gap: 6px; cursor: text;
+      position: relative;
+    }
+    .date-field input[type="text"] {
+      border: none; outline: none; background: transparent;
+      font-size: 13px; font-family: var(--font); color: var(--text);
+      width: 88px; cursor: text;
+    }
+    .date-field i { color: var(--text-muted); font-size: 14px; cursor: pointer; flex-shrink: 0; }
+    .date-field i:hover { color: var(--text); }
+    .date-field input[type="date"] {
+      position: absolute; opacity: 0; width: 1px; height: 1px;
+      top: 0; right: 0; pointer-events: none; border: none;
+    }
+    .date-field:focus-within {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(24,95,165,0.15);
+    }
   </style>
 </head>
 <body>
 
-<h1>SEGSY</h1>
+<div class="brand">
+  <img src="./logo.png" alt="SEGSY logo" class="brand-logo">
+  <span class="brand-name">EGSY</span>
+</div>
 
 <div class="toolbar">
   <div class="toolbar-group">
-    <label class="tb" for="startDate">Start</label>
-    <input type="date" id="startDate" />
-    <label class="tb" for="endDate">End</label>
-    <input type="date" id="endDate" />
+    <label class="tb" for="startDateText">Start</label>
+    <div class="date-field">
+      <input type="text"  id="startDateText" placeholder="YYYY-MM-DD" maxlength="10" />
+      <i class="ti ti-calendar" id="startCalIcon" title="Pick date"></i>
+      <input type="date"  id="startDate" tabindex="-1" />
+    </div>
+    <label class="tb" for="endDateText">End</label>
+    <div class="date-field">
+      <input type="text"  id="endDateText" placeholder="YYYY-MM-DD" maxlength="10" />
+      <i class="ti ti-calendar" id="endCalIcon" title="Pick date"></i>
+      <input type="date"  id="endDate" tabindex="-1" />
+    </div>
   </div>
-  <div class="toolbar-group">
-    <button class="zoom-btn" onclick="zoom(-1)" title="Zoom out"><i class="ti ti-zoom-out" aria-hidden="true"></i></button>
-    <button class="zoom-btn" onclick="zoom(1)"  title="Zoom in"><i class="ti ti-zoom-in"  aria-hidden="true"></i></button>
+  <div class="toolbar-group" id="viewToggleGroup">
+    <button id="btnDay"   onclick="setView('day')"   class="view-btn active">Day</button>
+    <button id="btnWeek"  onclick="setView('week')"  class="view-btn">Week</button>
+    <button id="btnMonth" onclick="setView('month')" class="view-btn">Month</button>
   </div>
   <div class="toolbar-group">
     <button onclick="downloadJSON()"><i class="ti ti-download" aria-hidden="true"></i> Save JSON</button>
@@ -276,10 +339,14 @@
 </div>
 
 <div class="chart-container" id="chartContainer">
-  <table id="ganttTable">
-    <thead id="ganttHead"></thead>
-    <tbody id="ganttBody"></tbody>
-  </table>
+  <div class="table-wrap" id="tableWrap">
+    <table id="ganttTable">
+      <thead id="ganttHead"></thead>
+      <tbody id="ganttBody"></tbody>
+    </table>
+    <div id="endLine" style="display:none;position:absolute;top:0;bottom:0;width:2px;background:#e24b4a;opacity:0.7;pointer-events:none;z-index:10;"></div>
+    <div id="endZone" style="display:none;position:absolute;top:0;bottom:0;right:0;background:rgba(0,0,0,0.04);pointer-events:none;z-index:9;"></div>
+  </div>
   <div class="add-row" onclick="addTask()">
     <i class="ti ti-plus" aria-hidden="true"></i> Add task
   </div>
@@ -290,8 +357,7 @@
 <footer>
   Drag <i class="ti ti-grip-vertical" style="font-size:12px;"></i> to reorder rows &nbsp;·&nbsp;
   Right-click a task label to delete &nbsp;·&nbsp;
-  Drag bar edges to resize &nbsp;·&nbsp;
-  Changes are auto-saved in your browser
+  Drag bar edges to resize
 </footer>
 
 <script>
@@ -310,31 +376,49 @@ let days        = 30;
 let defaultDays = 30;  // restored when end date is cleared
 let cellW       = 28;
 let weekMode    = false;  // true = each column represents 7 days
+let monthMode   = false;  // true = each column represents one calendar month
 let baseDate = new Date(); baseDate.setHours(0,0,0,0);
 let endDate  = null;  // null = no deadline set
 
 // ── Controls ───────────────────────────────────────────────────────────
-const startInput = document.getElementById('startDate');
-const endInput   = document.getElementById('endDate');
-startInput.value = fmtDate(baseDate);
-['change','input'].forEach(evt => startInput.addEventListener(evt, () => {
-  baseDate = new Date(startInput.value+'T00:00:00');
-  if (endDate) {
-    const computed = dayOffset(endDate) + 1;
-    if (computed > 0) days = computed;
-  }
+const startDatePicker = document.getElementById('startDate');
+const endDatePicker   = document.getElementById('endDate');
+const startDateText   = document.getElementById('startDateText');
+const endDateText     = document.getElementById('endDateText');
+
+// Expose for legacy references in applyChartData
+const startInput = { get value() { return startDateText.value; }, set value(v) { startDateText.value = v; startDatePicker.value = v; } };
+const endInput   = { get value() { return endDateText.value;   }, set value(v) { endDateText.value   = v; endDatePicker.value   = v; } };
+
+startDateText.value = fmtDate(baseDate);
+
+function applyStartDate(val) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(val)) return;
+  baseDate = new Date(val + 'T00:00:00');
+  if (endDate) { const c = dayOffset(endDate) + 1; if (c > 0) days = c; }
   render(); autoSave();
-}));
-['change','input'].forEach(evt => endInput.addEventListener(evt, () => {
-  endDate = endInput.value ? new Date(endInput.value+'T00:00:00') : null;
-  if (endDate) {
-    const computed = dayOffset(endDate) + 1;
-    if (computed > 0) days = computed;
-  } else {
-    days = defaultDays;
-  }
+}
+function applyEndDate(val) {
+  endDate = val ? new Date(val + 'T00:00:00') : null;
+  if (endDate) { const c = dayOffset(endDate) + 1; if (c > 0) days = c; }
+  else days = defaultDays;
   render(); autoSave();
-}));
+}
+
+startDateText.addEventListener('change', () => applyStartDate(startDateText.value));
+startDateText.addEventListener('input',  () => { if (/^\d{4}-\d{2}-\d{2}$/.test(startDateText.value)) applyStartDate(startDateText.value); });
+endDateText.addEventListener('change',   () => applyEndDate(endDateText.value));
+endDateText.addEventListener('input',    () => { if (/^\d{4}-\d{2}-\d{2}$/.test(endDateText.value) || endDateText.value === '') applyEndDate(endDateText.value); });
+
+// Calendar icon opens native picker; picker change syncs back to text input
+document.getElementById('startCalIcon').addEventListener('click', () => {
+  startDatePicker.showPicker ? startDatePicker.showPicker() : startDatePicker.click();
+});
+document.getElementById('endCalIcon').addEventListener('click', () => {
+  endDatePicker.showPicker ? endDatePicker.showPicker() : endDatePicker.click();
+});
+startDatePicker.addEventListener('change', () => { startDateText.value = startDatePicker.value; applyStartDate(startDatePicker.value); });
+endDatePicker.addEventListener('change',   () => { endDateText.value   = endDatePicker.value;   applyEndDate(endDatePicker.value);   });
 
 document.getElementById('fileInput').addEventListener('change', e => {
   const file = e.target.files[0]; if (!file) return;
@@ -362,59 +446,42 @@ function fmtDate(d) {
 }
 
 // Threshold below which day-mode columns become too narrow to be useful
-const DAY_MODE_MIN_CELL = 10;
-const WEEK_MODE_DEFAULT_CELL = 28;
+const DAY_MODE_MIN_CELL       = 10;
+const DAY_MODE_DEFAULT_CELL   = 28;
+const WEEK_MODE_DEFAULT_CELL  = 28;
+const MONTH_MODE_DEFAULT_CELL = 36;
+const MONTH_MODE_MIN_CELL     = 8;
+const CELL_MAX = 60;
 
-function zoom(dir) {
+function setView(mode) {
   const container = document.getElementById('chartContainer');
   const availW    = container.clientWidth - 160;
-  const STEP      = 6;
 
-  if (!weekMode) {
-    const cols    = days;
-    const minCell = cols > 0 ? Math.max(DAY_MODE_MIN_CELL, Math.floor(availW / cols)) : DAY_MODE_MIN_CELL;
+  weekMode  = false;
+  monthMode = false;
 
-    if (dir < 0) {
-      if (cellW > minCell) {
-        // Not yet at the fit-to-container width — jump straight there
-        // instead of stepping toward it over multiple clicks.
-        cellW = minCell;
-      } else if (cellW - STEP < DAY_MODE_MIN_CELL) {
-        // Already at minimum useful day width — switch to week mode.
-        // Land directly on the fit-to-container week width if that's
-        // wider than the default, so no extra click is needed afterward.
-        const weeks       = Math.ceil(days / 7);
-        const weekMinCell = weeks > 0 ? Math.max(8, Math.floor(availW / weeks)) : 8;
-        weekMode = true;
-        cellW    = Math.max(WEEK_MODE_DEFAULT_CELL, weekMinCell);
-      } else {
-        cellW = Math.max(DAY_MODE_MIN_CELL, cellW - STEP);
-      }
-    } else {
-      cellW = Math.min(60, cellW + STEP);
-    }
-  } else {
+  if (mode === 'day') {
+    const fitCell = days > 0 ? Math.floor(availW / days) : DAY_MODE_DEFAULT_CELL;
+    cellW = Math.min(CELL_MAX, Math.max(DAY_MODE_MIN_CELL, fitCell));
+  } else if (mode === 'week') {
+    weekMode      = true;
     const weeks   = Math.ceil(days / 7);
-    const minCell = weeks > 0 ? Math.max(8, Math.floor(availW / weeks)) : 8;
-
-    if (dir < 0) {
-      if (cellW > minCell) {
-        cellW = minCell;
-      } else {
-        cellW = Math.max(minCell, cellW - STEP);
-      }
-    } else if (cellW >= WEEK_MODE_DEFAULT_CELL) {
-      // Switch back to day mode — land on the fit-to-container width
-      // immediately if it's wider than the default.
-      const dayMinCell = days > 0 ? Math.max(DAY_MODE_MIN_CELL, Math.floor(availW / days)) : DAY_MODE_MIN_CELL;
-      weekMode = false;
-      cellW    = Math.max(DAY_MODE_MIN_CELL + 4, dayMinCell);
-    } else {
-      cellW = Math.min(60, cellW + STEP);
-    }
+    const fitCell = weeks > 0 ? Math.floor(availW / weeks) : WEEK_MODE_DEFAULT_CELL;
+    cellW = Math.min(CELL_MAX, Math.max(WEEK_MODE_DEFAULT_CELL, fitCell));
+  } else {
+    monthMode     = true;
+    const months  = getMonthCols().length;
+    const fitCell = months > 0 ? Math.floor(availW / months) : MONTH_MODE_DEFAULT_CELL;
+    cellW = Math.min(CELL_MAX, Math.max(MONTH_MODE_DEFAULT_CELL, fitCell));
   }
+
+  document.getElementById('btnDay').classList.toggle('active',   mode === 'day');
+  document.getElementById('btnWeek').classList.toggle('active',  mode === 'week');
+  document.getElementById('btnMonth').classList.toggle('active', mode === 'month');
+
   render(); autoSave();
 }
+
 
 // ── Render ─────────────────────────────────────────────────────────────
 function render() {
@@ -428,7 +495,7 @@ function render() {
   // (may be negative if baseDate is not Monday, meaning first label is before the grid)
   const mondayAnchor   = daysToMonday; // ≤ 0
 
-  if (!weekMode) {
+  if (!weekMode && !monthMode) {
     // ── DAY MODE ─────────────────────────────────────────────────────────
 
     // Header row 1: month spans
@@ -492,12 +559,9 @@ function render() {
       _placeBar(tr, task, days, cellW);
     });
 
-  } else {
+  } else if (weekMode) {
     // ── WEEK MODE ────────────────────────────────────────────────────────
     // Each column = one ISO week (Mon–Sun). First column may be a partial week.
-
-    // Build week columns: each entry = { startDay (offset into range), count (days in this col) }
-    // First col starts at day 0, ends at the following Sunday (or end of range)
     const weekCols = getWeekCols();
     const numCols = weekCols.length;
 
@@ -524,8 +588,6 @@ function render() {
     for (let ci = 0; ci < numCols; ci++) {
       const wc     = weekCols[ci];
       const d      = addDays(baseDate, wc.startDay);
-      // Find Monday of this week col
-      const monD   = addDays(baseDate, wc.startDay + (d.getDay()===1?0: d.getDay()===0?1:8-d.getDay()));
       const isTd   = todayOff >= wc.startDay && todayOff < wc.startDay + wc.count;
       let cls = 'date-header';
       if (isTd)   cls += ' today-col';
@@ -561,12 +623,132 @@ function render() {
         tr.appendChild(td);
       }
       body.appendChild(tr);
-      _placeBarWeek(tr, task, weekCols, cellW, days);
+      _placeBarCols(tr, task, weekCols, cellW, days);
+    });
+
+  } else {
+    // ── MONTH MODE ───────────────────────────────────────────────────────
+    // Each column = one calendar month. First/last columns may be partial.
+    const monthCols = getMonthCols();
+    const numCols   = monthCols.length;
+
+    // Header row 1: year spans across month columns (groups consecutive
+    // columns that share the same year)
+    const head = document.getElementById('ganttHead');
+    const yearSpans = [];
+    for (let ci = 0; ci < numCols; ci++) {
+      const d   = addDays(baseDate, monthCols[ci].startDay);
+      const key = `${d.getFullYear()}`;
+      if (!yearSpans.length || yearSpans[yearSpans.length-1].key !== key)
+        yearSpans.push({ key, label: key, colCount: 1 });
+      else yearSpans[yearSpans.length-1].colCount++;
+    }
+    let row1 = `<tr><th class="task-col month-header" style="text-align:left;padding:3px 10px;color:var(--text-secondary);font-size:12px;font-weight:500;">Task</th>`;
+    for (const ys of yearSpans) {
+      const w = ys.colCount * cellW;
+      row1 += `<th class="month-header" colspan="${ys.colCount}" style="min-width:${w}px;max-width:${w}px;"><span class="month-header-label">${ys.label}</span></th>`;
+    }
+    row1 += '</tr>';
+
+    // Header row 2: month name for each column, e.g. "Jun"
+    let row2 = `<tr><th class="task-col date-header" style="border-right:0.5px solid var(--border-strong);"></th>`;
+    for (let ci = 0; ci < numCols; ci++) {
+      const mc   = monthCols[ci];
+      const d    = addDays(baseDate, mc.startDay);
+      const isTd = todayOff >= mc.startDay && todayOff < mc.startDay + mc.count;
+      let cls = 'date-header';
+      if (isTd) cls += ' today-col';
+      const label = d.toLocaleString('default', {month:'short'});
+      row2 += `<th class="${cls}" style="width:${cellW}px;min-width:${cellW}px;">${label}</th>`;
+    }
+    row2 += '</tr>';
+    head.innerHTML = row1 + row2;
+
+    // Body: one cell per month column
+    const body = document.getElementById('ganttBody');
+    body.innerHTML = '';
+    tasks.forEach(task => {
+      const tr = document.createElement('tr');
+      tr.dataset.id = task.id;
+      tr.appendChild(_makeLabelTd(task));
+
+      for (let ci = 0; ci < numCols; ci++) {
+        const mc   = monthCols[ci];
+        const isTd = todayOff >= mc.startDay && todayOff < mc.startDay + mc.count;
+        const td   = document.createElement('td');
+        let cls = 'cell';
+        if (isTd) cls += ' today-col';
+        td.className      = cls;
+        td.style.cssText  = `width:${cellW}px;min-width:${cellW}px;`;
+        td.dataset.monthCol   = ci;
+        td.dataset.monthStart = mc.startDay;
+        td.dataset.monthCount = mc.count;
+        td.dataset.taskId     = task.id;
+        tr.appendChild(td);
+      }
+      body.appendChild(tr);
+      _placeBarCols(tr, task, monthCols, cellW, days);
     });
   }
+  updateEndLine();
 }
 
-// ── Shared label-cell builder ───────────────────────────────────────────────
+// ── End-date boundary line ──────────────────────────────────────────────────
+// Draws a pixel-precise red vertical line at the end-date boundary.
+// Works in all three modes; in month mode this correctly falls mid-column
+// when the end date isn't the last day of a month.
+function updateEndLine() {
+  const line = document.getElementById('endLine');
+  if (!line || !endDate) {
+    if (line) line.style.display = 'none';
+    const zone = document.getElementById('endZone');
+    if (zone) zone.style.display = 'none';
+    return;
+  }
+
+  const LABEL_W = 160;
+  let leftPx;
+
+  if (!weekMode && !monthMode) {
+    // Day mode: each column is one day, end date is the right edge of the last day column
+    leftPx = LABEL_W + days * cellW;
+  } else {
+    const cols = monthMode ? getMonthCols() : getWeekCols();
+    let px = LABEL_W;
+    for (let ci = 0; ci < cols.length; ci++) {
+      const c = cols[ci];
+      if (days - 1 < c.startDay + c.count) {
+        // days - 1 is the last included day. Position the line at its right
+        // edge, i.e. after (days - c.startDay) days into this column.
+        // Use daysInMonth (the full calendar span of this column) as the
+        // denominator so the fraction reflects true position within the column.
+        const daysUsed   = days - c.startDay;
+        const colSpan    = monthMode ? c.daysInMonth : 7; // full column span in days
+        px += (daysUsed / colSpan) * cellW;
+        break;
+      }
+      px += cellW;
+    }
+    leftPx = px;
+  }
+
+  line.style.display = 'block';
+  line.style.left    = leftPx + 'px';
+
+  // Dead zone: shade the area to the right of the end line
+  const zone = document.getElementById('endZone');
+  if (zone) {
+    const tableWidth = document.getElementById('ganttTable').offsetWidth;
+    const zoneWidth  = tableWidth - leftPx;
+    if (zoneWidth > 0) {
+      zone.style.display = 'block';
+      zone.style.left    = leftPx + 'px';
+      zone.style.width   = zoneWidth + 'px';
+    } else {
+      zone.style.display = 'none';
+    }
+  }
+}
 function _makeLabelTd(task) {
   const labelTd = document.createElement('td');
   labelTd.className = 'task-label';
@@ -634,45 +816,48 @@ function _placeBar(tr, task, totalDays, cw) {
   const startCell = tr.cells[barStart + 1];
   if (!startCell) return;
   const span = barEnd - barStart;
-  startCell.appendChild(_makeBar(task, span, span - 1));
+  // +span-1 compensates for 0.5px inter-cell borders accumulated across spans.
+  // When the bar ends exactly at the grid boundary there's no right-side border
+  // to compensate for, so omit the extra pixels to prevent overflow.
+  const extraPx = barEnd < totalDays ? span - 1 : 0;
+  startCell.appendChild(_makeBar(task, span, extraPx));
 }
 
-function _placeBarWeek(tr, task, weekCols, cw, totalDays) {
+function _placeBarCols(tr, task, cols, cw, totalDays) {
   const barStart = Math.max(0, task.start);
   const barEnd   = Math.min(totalDays, task.start + task.dur);
   if (barStart >= totalDays || barEnd <= 0) return;
 
-  // Find which column the bar starts in, and the pixel offset within that col
+  // Find the column containing barStart, and the fractional offset within it.
   let startCol = 0, startFrac = 0;
-  for (let ci = 0; ci < weekCols.length; ci++) {
-    const wc = weekCols[ci];
-    if (barStart < wc.startDay + wc.count) {
+  for (let ci = 0; ci < cols.length; ci++) {
+    const c = cols[ci];
+    if (barStart < c.startDay + c.count) {
       startCol  = ci;
-      startFrac = (barStart - wc.startDay) / wc.count; // 0..1
+      startFrac = (barStart - c.startDay) / c.count; // 0..1, using THIS column's own day count
       break;
     }
   }
 
-  // Width in fractional columns
-  const durCols = (barEnd - barStart) / 7;
-  // Approximate: left offset in px + width in px
-  const leftPx  = startFrac * cw;
-  const widthPx = durCols * cw - 1;
+  // Sum pixel width across every column the bar spans, using each column's
+  // own day count as the divisor (handles 28-31 day months correctly,
+  // and the constant 7 for week columns).
+  let widthPx = 0;
+  let remaining = barEnd - barStart;
+  for (let ci = startCol; ci < cols.length && remaining > 0; ci++) {
+    const c = cols[ci];
+    const colStartOffset = ci === startCol ? (barStart - c.startDay) : 0;
+    const daysInColUsed  = Math.min(c.count - colStartOffset, remaining);
+    widthPx   += (daysInColUsed / c.count) * cw;
+    remaining -= daysInColUsed;
+  }
 
+  const leftPx    = startFrac * cw;
   const startCell = tr.cells[startCol + 1];
   if (!startCell) return;
 
-  const bar = document.createElement('div');
-  bar.className  = 'bar';
-  bar.dataset.id = task.id;
-  bar.style.cssText = `background:${task.color};left:${leftPx}px;width:${widthPx}px;`;
-  const lh = document.createElement('div');
-  lh.className='resize-handle left'; lh.dataset.id=task.id; lh.dataset.action='left';
-  const bl = document.createElement('span');
-  bl.className='bar-label'; bl.textContent=task.name;
-  const rh = document.createElement('div');
-  rh.className='resize-handle right'; rh.dataset.id=task.id; rh.dataset.action='right';
-  bar.appendChild(lh); bar.appendChild(bl); bar.appendChild(rh);
+  const bar = _makeBar(task, 0, 0);
+  bar.style.cssText = `background:${task.color};left:${leftPx}px;width:${Math.max(2,widthPx-1)}px;`;
   startCell.appendChild(bar);
 }
 
@@ -708,15 +893,15 @@ function onCellMousedown(e, cell) {
   if (!task) return;
 
   let day;
-  if (!weekMode) {
+  if (!weekMode && !monthMode) {
     day = +cell.dataset.day;
   } else {
-    // Determine which day within the week column the cursor is over
-    const weekStart = +cell.dataset.weekStart;
-    const weekCount = +cell.dataset.weekCount;
-    const rect       = cell.getBoundingClientRect();
-    const frac       = Math.min(0.999, Math.max(0, (e.clientX - rect.left) / rect.width));
-    day = weekStart + Math.floor(frac * weekCount);
+    // Determine which day within the week/month column the cursor is over
+    const colStart = weekMode ? +cell.dataset.weekStart : +cell.dataset.monthStart;
+    const colCount = weekMode ? +cell.dataset.weekCount : +cell.dataset.monthCount;
+    const rect      = cell.getBoundingClientRect();
+    const frac      = Math.min(0.999, Math.max(0, (e.clientX - rect.left) / rect.width));
+    day = colStart + Math.floor(frac * colCount);
   }
 
   if (day<task.start||day>=task.start+task.dur) {
@@ -727,9 +912,18 @@ function onCellMousedown(e, cell) {
 
 document.addEventListener('mousemove', e => {
   if (!dragState) return;
-  // In week mode each column spans ~7 days, so convert px → days using a
-  // per-day pixel width rather than the column's pixel width.
-  const dayPx = weekMode ? cellW / 7 : cellW;
+  // In week/month mode each column spans multiple days, so convert px → days
+  // using a per-day pixel width rather than the column's pixel width.
+  // Week columns are always 7 days; month columns vary (28-31), so for month
+  // mode we use the actual calendar month the task is currently anchored in.
+  let dayPx = cellW;
+  if (weekMode) {
+    dayPx = cellW / 7;
+  } else if (monthMode) {
+    const d = addDays(baseDate, Math.max(0, Math.min(days - 1, dragState.task.start)));
+    const daysInMo = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+    dayPx = cellW / daysInMo;
+  }
   const delta = Math.round((e.clientX-dragState.startX)/dayPx);
   const {task,origStart,origDur,type,action} = dragState;
   const limit = days;
@@ -761,35 +955,18 @@ function updateBarInPlace(task) {
 
   if (barStart >= days || barEnd <= 0 || span <= 0) return;
 
-  if (!weekMode) {
+  if (!weekMode && !monthMode) {
     const startCell = row.cells[barStart + 1];
     if (startCell) {
-      startCell.appendChild(_makeBar(task, span, span - 1));
+      const extraPx = barEnd < days ? span - 1 : 0;
+      startCell.appendChild(_makeBar(task, span, extraPx));
     }
     return;
   }
 
-  // ── WEEK MODE: place with day-level precision inside week columns ──────
-  const weekCols = getWeekCols();
-  let startCol = 0, startFrac = 0;
-  for (let ci = 0; ci < weekCols.length; ci++) {
-    const wc = weekCols[ci];
-    if (barStart < wc.startDay + wc.count) {
-      startCol  = ci;
-      startFrac = (barStart - wc.startDay) / wc.count;
-      break;
-    }
-  }
-  const durCols  = span / 7;
-  const leftPx   = startFrac * cellW;
-  const widthPx  = durCols * cellW - 1;
-
-  const startCell = row.cells[startCol + 1];
-  if (!startCell) return;
-
-  const bar = _makeBar(task, 0, 0);
-  bar.style.cssText = `background:${task.color};left:${leftPx}px;width:${widthPx}px;`;
-  startCell.appendChild(bar);
+  // ── WEEK/MONTH MODE: place with day-level precision inside columns ─────
+  const cols = monthMode ? getMonthCols() : getWeekCols();
+  _placeBarCols(row, task, cols, cellW, days);
 }
 
 // Recompute week columns for the current baseDate/days (mirrors the logic in render())
@@ -805,6 +982,35 @@ function getWeekCols() {
     d0 += count;
   }
   return weekCols;
+}
+
+// Recompute month columns for the current baseDate/days. Each column = one
+// calendar month; first/last columns may be partial. count = actual days
+// of the range falling in that month (28-31, or fewer at the edges).
+function getMonthCols() {
+  const monthCols = [];
+  let d0 = 0;
+  while (d0 < days) {
+    const date     = addDays(baseDate, d0);
+    const y        = date.getFullYear();
+    const m        = date.getMonth();
+    const daysInMo = new Date(y, m + 1, 0).getDate(); // days in this calendar month
+    const dayOfMo  = date.getDate(); // 1-based
+    const toEndOfMo = daysInMo - dayOfMo + 1; // days remaining incl. today
+    const count    = Math.min(toEndOfMo, days - d0);
+    monthCols.push({ startDay: d0, count, daysInMonth: daysInMo });
+    d0 += count;
+  }
+  return monthCols;
+}
+
+// Returns the active column set + per-column "full span" divisor (7 for
+// week mode, the calendar month's day count for month mode) so bar-placement
+// math can be shared between the two zoomed-out modes.
+function getActiveCols() {
+  if (monthMode) return { cols: getMonthCols(), kind: 'month' };
+  if (weekMode)  return { cols: getWeekCols(),  kind: 'week'  };
+  return null;
 }
 
 document.addEventListener('mouseup', () => { if (dragState) { dragState=null; render(); autoSave(); } });
